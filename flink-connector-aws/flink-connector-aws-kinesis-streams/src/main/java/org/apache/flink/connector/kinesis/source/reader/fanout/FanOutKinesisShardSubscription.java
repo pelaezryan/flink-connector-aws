@@ -190,11 +190,13 @@ public class FanOutKinesisShardSubscription {
     }
 
     private void terminateSubscription(Throwable t) {
+
         if (!subscriptionException.compareAndSet(null, t)) {
             LOG.warn(
                     "Another subscription exception has been queued, ignoring subsequent exceptions",
                     t);
         }
+        LOG.warn("Terminating subscription for shard {} in consumer {} due to: ", this.shardId, this.consumerArn, t);
         shardSubscriber.cancel();
     }
 
@@ -228,6 +230,10 @@ public class FanOutKinesisShardSubscription {
                 LOG.warn(
                         "Recoverable exception encountered while subscribing to shard. Ignoring.",
                         recoverableException.get());
+
+                if (ExceptionUtils.findThrowable(throwable, LimitExceededException.class).isPresent()) {
+                    Thread.sleep(100);
+                }
                 shardSubscriber.cancel();
                 activateSubscription();
                 return null;
@@ -369,10 +375,15 @@ public class FanOutKinesisShardSubscription {
 
         @Override
         public void onError(Throwable throwable) {
+            LOG.warn("Subscriber experienced an error: " + throwable);
             if (!subscriptionException.compareAndSet(null, throwable)) {
                 LOG.warn(
                         "Another subscription exception has been queued, ignoring subsequent exceptions",
                         throwable);
+            }
+
+            if (ExceptionUtils.findThrowable(throwable, ResourceInUseException.class).isPresent()) {
+                this.cancel();
             }
         }
 
