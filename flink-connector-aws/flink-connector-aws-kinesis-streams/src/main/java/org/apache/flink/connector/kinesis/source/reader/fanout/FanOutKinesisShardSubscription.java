@@ -230,10 +230,6 @@ public class FanOutKinesisShardSubscription {
                 LOG.warn(
                         "Recoverable exception encountered while subscribing to shard. Ignoring.",
                         recoverableException.get());
-
-                if (ExceptionUtils.findThrowable(throwable, LimitExceededException.class).isPresent()) {
-                    Thread.sleep(100);
-                }
                 shardSubscriber.cancel();
                 activateSubscription();
                 return null;
